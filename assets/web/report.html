@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>@@TITLE@@</title>
+  <style>@@CSS@@</style>
+</head>
+<body>
+  <div class="reading-progress" aria-hidden="true"><span id="progress"></span></div>
+  <header class="toolbar">
+    <a class="brand" href="#top" aria-label="返回报告首页"><span class="brand-mark" aria-hidden="true">家</span><span>每周家庭会议<small>围坐一桌 · 一起成长</small></span></a>
+    <div class="export-actions"><button id="save-pdf" type="button"><span aria-hidden="true">↓</span> 另存为 PDF</button><button id="save-png" class="primary" type="button"><span aria-hidden="true">↓</span> 另存为 PNG 图片</button></div>
+  </header>
+  <div class="workspace" id="top">
+    <aside class="sidebar" aria-label="报告章节">
+      <p class="side-label">阅读目录</p>
+      <nav id="toc"></nav>
+      <div class="side-note"><p id="audience-note">给家长的阅读版本</p><a id="save-markdown" href="#">保存 Markdown 原文 ↗</a></div>
+    </aside>
+    <main id="report" class="paper" aria-label="完整报告">
+      <header class="cover">
+        <div class="cover-top"><span id="kind">家庭记录</span><span id="date"></span></div>
+        <div class="cover-composition">
+          <div class="cover-copy"><p class="eyebrow">每周家庭会议</p><h1 id="headline"></h1><p class="cover-caption">让每个人被听见，让小事有回声。</p></div>
+          <img class="cover-art" src="data:image/svg+xml;base64,@@ART@@" alt="" aria-hidden="true" width="240" height="320">
+        </div>
+        <div class="cover-bottom"><span id="report-id"></span><span id="audience-badge">家长阅读</span></div>
+      </header>
+      <div class="report-content">
+        <section id="opening" class="opening" aria-label="记录信息与阅读提要"></section>
+        <div id="chapters"></div>
+        <footer class="report-footer">
+          <div class="footer-meta"><span class="footer-mark" aria-hidden="true">— 终 —</span><div><strong>每周家庭会议</strong><span>围坐一桌 · 一起成长</span></div><small id="footer-version"></small></div>
+          <p class="byline">作者：阿昌 丨 公众号：阿昌正传</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+  <div id="export-status" class="status" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="no-script">此报告需要启用 JavaScript 才能排版和导出。请阅读同名 Markdown 文件。</p></noscript>
+  <script id="report-settings" type="application/json">@@SETTINGS@@</script>
+  <script>@@MARKED@@</script>
+  <script>@@CANVAS@@</script>
+  <script>@@PNG@@</script>
+  <script>@@JS@@</script>
+</body>
+</html>

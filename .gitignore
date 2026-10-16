@@ -1,0 +1,22 @@
+# Python generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local credentials and machine settings
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+# Family runtime data must stay outside the distributable skill
+档案/
+STATE-latest.json
+KNOWLEDGE-latest.json
+FAMILY-profile.json
+
+.qa/
+*.zip

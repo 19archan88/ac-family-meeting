@@ -1,0 +1,21 @@
+{
+  "profile_version": "1.0",
+  "last_updated": null,
+  "children": [
+    {
+      "id": "child-1",
+      "alias": null,
+      "pronouns": null,
+      "birth_date": null,
+      "age_reference": null,
+      "school_start": null,
+      "school_baselines": []
+    }
+  ],
+  "family_members": [],
+  "default_participants": [],
+  "archive_path": null,
+  "meeting_schedule": null,
+  "semesters": [],
+  "semester_reminder_months": []
+}

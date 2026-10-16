@@ -1,0 +1,4 @@
+interface:
+  display_name: "ac-family-meeting"
+  short_description: "整理家庭会议与成长档案，先打开正文供阅读，完成检查归档后自动打开HTML，交付全文和文件"
+  default_prompt: "请使用 $ac-family-meeting 处理家庭会议记录，首次使用请提醒我配置孩子及家庭成员资料、年龄年级规则和校历，校验日期和届数后，先完成并打开 Markdown 全文供我阅读，提示后自动继续生成 HTML、检查归档并自动打开最终 HTML 阅读版，最后在对话交付完整报告及文件链接，PDF、PNG 按需生成。"
