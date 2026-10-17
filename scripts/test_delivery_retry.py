@@ -13,6 +13,22 @@ from deliver_report import finish, read_json, atomic_json
 class RetryTests(unittest.TestCase):
     setUp = fixtures.DeliveryTests.setUp
     tearDown = fixtures.DeliveryTests.tearDown
+
+    def test_first_finish_preserves_matching_prebuilt_page(self):
+        from build_report_html import build
+        build(self.source, headline='先生成的提要', audience='family')
+        finish(self.source, self.receipt, no_archive=True, onboarding_acknowledged=True)
+        self.assertEqual(self.settings()['headline'], '先生成的提要')
+        self.assertEqual(self.settings()['audience'], 'family')
+
+    def test_missing_template_resources_keep_saved_choices(self):
+        with patch('deliver_report.renderer_digest', side_effect=FileNotFoundError('missing template')):
+            with self.assertRaises(OSError):
+                finish(self.source, self.receipt, no_archive=True, onboarding_acknowledged=True,
+                       headline='资源失败后保留', audience='family')
+        finish(self.source, self.receipt, no_archive=True, onboarding_acknowledged=True)
+        self.assertEqual(self.settings()['headline'], '资源失败后保留')
+        self.assertEqual(self.settings()['audience'], 'family')
     def settings(self):
         page = self.source.with_suffix('.html').read_text(encoding='utf-8')
         return json.loads(re.search(r'<script id="report-settings" type="application/json">(.*?)</script>', page, re.S)[1])

@@ -19,6 +19,7 @@ from build_report_html import build, ROOT
 from meeting_context import inspect
 from profile_store import read_profile, require_ready
 from check_report_content import check_report
+from render_retry import settings_for
 
 COLLECTIONS = ('meetings', 'reports', 'actions', 'signals')
 
@@ -275,6 +276,11 @@ def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=Fa
     try:
         html = source.with_suffix('.html')
         previous = receipt.get('render_options')
+        if previous is None and receipt['status'] == 'body_ready' and html.exists() and (headline is None or audience is None):
+            settings = settings_for(html.read_text(encoding='utf-8'), source.read_bytes(), source.stem)
+            if settings is not None:
+                verify(source, html)
+                previous = {'headline': settings.get('headline'), 'audience': settings.get('audience', 'parent')}
         if previous is None and receipt['status'] in ('complete', 'failed') and html.exists():
             # Older receipts did not retain presentation arguments. Recover only
             # from a self-contained page whose embedded source is exactly this MD.
@@ -290,17 +296,17 @@ def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=Fa
         if options['audience'] not in ('parent', 'family', 'guide'):
             raise ValueError('Invalid saved audience; provide an explicit --audience.')
         content_checks = check_report(source, options['audience'])
-        renderer_sha = renderer_digest()
-        reuse = (receipt.get('render_options') == options and receipt.get('renderer_sha256') == renderer_sha
-                 and html.is_file() and receipt.get('html_sha256') == digest(html.read_bytes()))
+        cached = dict(receipt)
         # Persist choices before rendering so even a failed first build can retry.
         receipt['render_options'] = options
-        if not reuse:
-            # Old artifact hashes must not become associated with new options if
-            # the attempted rebuild fails before replacing the old HTML.
-            receipt.pop('html_sha256', None)
-            receipt.pop('renderer_sha256', None)
+        # Preserve parameters even if reading template resources fails, and never
+        # associate old artifact hashes with newly requested options on failure.
+        receipt.pop('html_sha256', None)
+        receipt.pop('renderer_sha256', None)
         atomic_json(receipt_path, receipt)
+        renderer_sha = renderer_digest()
+        reuse = (cached.get('render_options') == options and cached.get('renderer_sha256') == renderer_sha
+                 and html.is_file() and cached.get('html_sha256') == digest(html.read_bytes()))
         if not reuse:
             html = build(source, **options)
         checks = verify(source, html)
@@ -350,4 +356,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from cli_support import run_cli
+    run_cli(main)

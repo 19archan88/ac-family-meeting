@@ -89,10 +89,12 @@ def main():
     parser.add_argument("source", help="The complete, anonymized Markdown report")
     parser.add_argument("--output")
     parser.add_argument("--headline", help="Optional editorial title; must not introduce unsupported claims")
-    parser.add_argument("--audience", choices=("parent", "family", "guide"), default="parent")
+    parser.add_argument("--audience", choices=("parent", "family", "guide"), default=None)
     args = parser.parse_args()
-    print(build(args.source, args.output, args.headline, args.audience))
+    from render_retry import render
+    print(render(build, args.source, args.output, args.headline, args.audience, allowed=('parent', 'family', 'guide')))
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    from cli_support import run_cli
+    run_cli(main)

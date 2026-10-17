@@ -137,6 +137,7 @@ class DeliveryTests(unittest.TestCase):
         page.write_text(page.read_text(encoding='utf-8').replace('id="save-png"','id="missing-control"'),encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'controls'):
             verify(self.source,page)
+        page.unlink()  # Isolate a first-build failure from the invalid legacy page.
         before=self.state.read_bytes()
         with patch('deliver_report.build',side_effect=OSError('build failed')):
             with self.assertRaises(OSError): self.run_finish()

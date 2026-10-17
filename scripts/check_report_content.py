@@ -91,4 +91,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from cli_support import run_cli
+    run_cli(main)
