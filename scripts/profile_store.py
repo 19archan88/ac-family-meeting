@@ -30,11 +30,11 @@ def read_profile(archive):
     return value
 
 
-def merge(old, patch):
-    """Merge objects; keyed member lists merge by id, other lists replace explicitly."""
+def merge(old, patch, _path=()):
+    """Apply list merge rules only at their schema paths, not by nested key names."""
     result = deepcopy(old)
     for key, value in patch.items():
-        if key in ('children', 'family_members'):
+        if not _path and key in ('children', 'family_members'):
             if not isinstance(value, list):
                 raise ValueError(f'{key} must be a list')
             existing = {item['id']: deepcopy(item) for item in result.get(key, [])}
@@ -45,9 +45,9 @@ def merge(old, patch):
                 if item['id'] in seen:
                     raise ValueError('Duplicate member id')
                 seen.add(item['id'])
-                existing[item['id']] = merge(existing.get(item['id'], {}), item)
+                existing[item['id']] = merge(existing.get(item['id'], {}), item, _path + (key, '*'))
             result[key] = list(existing.values())
-        elif key == 'school_baselines':
+        elif _path == ('children', '*') and key == 'school_baselines':
             if not isinstance(value, list):
                 raise ValueError('school_baselines must be a list')
             baselines = {item['effective_date']: deepcopy(item) for item in result.get(key, [])}
@@ -61,7 +61,7 @@ def merge(old, patch):
                 baselines[effective] = deepcopy(item)
             result[key] = [baselines[k] for k in sorted(baselines)]
         elif isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = merge(result[key], value)
+            result[key] = merge(result[key], value, _path + (key,))
         else:
             result[key] = deepcopy(value)
     return result
