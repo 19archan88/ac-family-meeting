@@ -15,7 +15,7 @@ import re
 import tempfile
 import time
 
-from build_report_html import build
+from build_report_html import build, ROOT
 from meeting_context import inspect
 from profile_store import read_profile, require_ready
 from check_report_content import check_report
@@ -245,7 +245,13 @@ def commit(state_path, patch_path, source, html, backup_dir, verified_hash):
         lock.unlink(missing_ok=True)
 
 
-def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=False, headline=None, audience='parent', family_archive=None, onboarding_acknowledged=False):
+def renderer_digest():
+    files = [ROOT / 'scripts/build_report_html.py', ROOT / 'LICENSE', ROOT / 'THIRD_PARTY_NOTICES.md']
+    files += sorted(p for p in (ROOT / 'assets/web').rglob('*') if p.is_file())
+    return digest(json.dumps([(str(p.relative_to(ROOT)), digest(p.read_bytes())) for p in files]).encode())
+
+
+def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=False, headline=None, audience=None, family_archive=None, onboarding_acknowledged=False):
     source, receipt_path = Path(source).resolve(), Path(receipt_path)
     if family_archive:
         family = read_profile(family_archive)
@@ -267,12 +273,43 @@ def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=Fa
         raise ValueError('Body changed after ready; review and start a new delivery receipt.')
     tick = time.perf_counter()
     try:
-        content_checks = check_report(source, audience)
-        html = build(source, headline=headline, audience=audience)
+        html = source.with_suffix('.html')
+        previous = receipt.get('render_options')
+        if previous is None and receipt['status'] in ('complete', 'failed') and html.exists():
+            # Older receipts did not retain presentation arguments. Recover only
+            # from a self-contained page whose embedded source is exactly this MD.
+            verify(source, html)
+            page = html.read_text(encoding='utf-8')
+            settings = json.loads(re.search(r'<script id="report-settings" type="application/json">(.*?)</script>', page, re.S)[1])
+            previous = {'headline': settings.get('headline'), 'audience': settings.get('audience', 'parent')}
+        elif previous is None and receipt['status'] in ('complete', 'failed') and (headline is None or audience is None):
+            raise ValueError('旧回执缺少显示参数且 HTML 不存在；请明确提供 --headline 和 --audience 后重试。')
+        previous = previous or {}
+        options = {'headline': headline if headline is not None else previous.get('headline'),
+                   'audience': audience if audience is not None else previous.get('audience', 'parent')}
+        if options['audience'] not in ('parent', 'family', 'guide'):
+            raise ValueError('Invalid saved audience; provide an explicit --audience.')
+        content_checks = check_report(source, options['audience'])
+        renderer_sha = renderer_digest()
+        reuse = (receipt.get('render_options') == options and receipt.get('renderer_sha256') == renderer_sha
+                 and html.is_file() and receipt.get('html_sha256') == digest(html.read_bytes()))
+        # Persist choices before rendering so even a failed first build can retry.
+        receipt['render_options'] = options
+        if not reuse:
+            # Old artifact hashes must not become associated with new options if
+            # the attempted rebuild fails before replacing the old HTML.
+            receipt.pop('html_sha256', None)
+            receipt.pop('renderer_sha256', None)
+        atomic_json(receipt_path, receipt)
+        if not reuse:
+            html = build(source, **options)
         checks = verify(source, html)
         checks['content_contract'] = content_checks
+        receipt.update(renderer_sha256=renderer_sha, html_sha256=digest(html.read_bytes()),
+                       html=str(html), html_reused=reuse)
         receipt['build_verify_seconds'] = round(time.perf_counter() - tick, 3)
         receipt['files_checked_at'] = now()
+        atomic_json(receipt_path, receipt)
         tick = time.perf_counter()
         result = 'not_requested' if no_archive else commit(state_path, patch_path, source, html, receipt_path.parent / 'backups', checks['sha256'])
         receipt.update(status='complete', archive_result=result, archive_seconds=round(time.perf_counter() - tick, 3), finished_at=now(), checks=checks, html=str(html))
@@ -302,7 +339,8 @@ def main():
     end.add_argument('--family-archive')
     end.add_argument('--onboarding-acknowledged', action='store_true')
     end.add_argument('--headline')
-    end.add_argument('--audience', choices=('parent', 'family', 'guide'), default='parent')
+    end.add_argument('--audience', choices=('parent', 'family', 'guide'), default=None,
+                     help='First run defaults to parent; retries retain the saved audience when omitted.')
     args = parser.parse_args()
     if args.command == 'finish':
         result = finish(args.source, args.receipt, args.state, args.patch, args.no_archive, args.headline, args.audience, args.family_archive, args.onboarding_acknowledged)

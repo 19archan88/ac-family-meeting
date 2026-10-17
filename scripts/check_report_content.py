@@ -83,7 +83,11 @@ def main():
     parser.add_argument('source')
     parser.add_argument('--audience', choices=('parent', 'family', 'guide'), default='parent')
     args = parser.parse_args()
-    print(json.dumps(check_report(args.source, args.audience), ensure_ascii=False, indent=2))
+    try:
+        result = check_report(args.source, args.audience)
+    except (ValueError, OSError) as exc:
+        parser.exit(1, f'校验失败：{exc}\n')
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':
