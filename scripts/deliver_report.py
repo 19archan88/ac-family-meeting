@@ -17,6 +17,8 @@ import time
 
 from build_report_html import build
 from meeting_context import inspect
+from profile_store import read_profile, require_ready
+from check_report_content import check_report
 
 COLLECTIONS = ('meetings', 'reports', 'actions', 'signals')
 
@@ -243,8 +245,19 @@ def commit(state_path, patch_path, source, html, backup_dir, verified_hash):
         lock.unlink(missing_ok=True)
 
 
-def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=False, headline=None, audience='parent'):
+def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=False, headline=None, audience='parent', family_archive=None, onboarding_acknowledged=False):
     source, receipt_path = Path(source).resolve(), Path(receipt_path)
+    if family_archive:
+        family = read_profile(family_archive)
+        if not family or not family.get('children'):
+            raise ValueError('Complete family onboarding before delivery')
+        for child in family['children']:
+            require_ready(family_archive, child['id'])
+        root = Path(family_archive).resolve()
+        if root not in source.parents or (state_path and root not in Path(state_path).resolve().parents):
+            raise ValueError('Report and state must belong to the selected family archive')
+    elif not (no_archive and onboarding_acknowledged):
+        raise ValueError('Provide --family-archive or explicitly acknowledge temporary onboarding with --no-archive')
     if bool(state_path and patch_path) == bool(no_archive) or bool(state_path) != bool(patch_path):
         raise ValueError('Provide both state and patch, or explicitly choose no_archive.')
     receipt = read_json(receipt_path)
@@ -254,8 +267,10 @@ def finish(source, receipt_path, state_path=None, patch_path=None, no_archive=Fa
         raise ValueError('Body changed after ready; review and start a new delivery receipt.')
     tick = time.perf_counter()
     try:
+        content_checks = check_report(source, audience)
         html = build(source, headline=headline, audience=audience)
         checks = verify(source, html)
+        checks['content_contract'] = content_checks
         receipt['build_verify_seconds'] = round(time.perf_counter() - tick, 3)
         receipt['files_checked_at'] = now()
         tick = time.perf_counter()
@@ -284,11 +299,13 @@ def main():
     end.add_argument('--state')
     end.add_argument('--patch')
     end.add_argument('--no-archive', action='store_true')
+    end.add_argument('--family-archive')
+    end.add_argument('--onboarding-acknowledged', action='store_true')
     end.add_argument('--headline')
     end.add_argument('--audience', choices=('parent', 'family', 'guide'), default='parent')
     args = parser.parse_args()
     if args.command == 'finish':
-        result = finish(args.source, args.receipt, args.state, args.patch, args.no_archive, args.headline, args.audience)
+        result = finish(args.source, args.receipt, args.state, args.patch, args.no_archive, args.headline, args.audience, args.family_archive, args.onboarding_acknowledged)
     else:
         result = mark(args.receipt, args.command, getattr(args, 'source', None))
     print(json.dumps(result, ensure_ascii=False, indent=2))

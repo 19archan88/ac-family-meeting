@@ -62,7 +62,7 @@
   const introParagraphs = [...document.querySelectorAll('#opening > p')];
   if (introParagraphs.length > 1 && introParagraphs.at(-1).querySelector('strong')) {
     introParagraphs.at(-1).classList.add('reading-lead');
-    introParagraphs.at(-1).dataset.label='本周的注脚';
+    introParagraphs.at(-1).dataset.label=config.leadLabel || '阅读提要';
   }
   if (introParagraphs[0]?.querySelector('br')) {
     const details=document.createElement('div');details.className='record-details';
@@ -98,6 +98,12 @@
         if (/安全|风险|红旗|校准|边界|警示|身体/.test(label)) group.classList.add('is-key');
         subsection.append(group); group.append(node);
       } else if (group !== chapter) group.append(node);
+    }
+  }
+  for (const list of chapters.querySelectorAll('.posture > ol')) {
+    list.style.counterReset = `posture ${list.start - 1}`;
+    for (const item of list.children) {
+      if (item.hasAttribute('value')) item.style.counterSet = `posture ${item.value}`;
     }
   }
   const sourceLink = document.getElementById('save-markdown');
@@ -152,7 +158,7 @@
     try{
       await new Promise((resolve,reject)=>{
         stage.onload=resolve;stage.onerror=()=>reject(new Error('Export viewport failed'));
-        stage.srcdoc='<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>'+
+        stage.srcdoc='<!doctype html><html lang="zh-CN" data-report-ready="true"><head><meta charset="utf-8"><style>'+
           document.querySelector('style').textContent+
           '.paper{width:900px!important;max-width:none;margin:0;box-shadow:none}body{margin:0;background:var(--paper)}</style></head><body>'+
           markup.outerHTML+'</body></html>';

@@ -1,4 +1,4 @@
-"""Private family profile calculations; no meeting/report scheduling rules."""
+"""Private family profile calculations; no report scheduling rules."""
 import calendar, re
 from datetime import date
 
@@ -81,10 +81,13 @@ def child_context(day, birth=None, school_start=None, profile=None):
     reference = profile.get('age_reference')
     if age is None and reference:
         reference_day = parse_date(reference['as_of'])
-        years, months = reference['years'], reference['months']
-        if type(years) is not int or years < 0 or type(months) is not int or not 0 <= months < 12:
+        years, months = reference['years'], reference.get('months')
+        if type(years) is not int or years < 0 or (months is not None and (type(months) is not int or not 0 <= months < 12)):
             raise ValueError('Age reference needs nonnegative years and months in 0..11')
-        if day >= reference_day:
+        if day >= reference_day and months is None:
+            age_label = f"截至{reference_day.isoformat()}为{years}岁（月数未知）；当前精确年龄待确认"
+            age_precision = 'years_only_reference'
+        elif day >= reference_day:
             total = years * 12 + months + elapsed(reference_day, day)['total_months']
             age = {'years': total // 12, 'months': total % 12, 'total_months': total}
             age_label = f"约{age['years']}岁{age['months']}个月"
@@ -104,6 +107,12 @@ def child_context(day, birth=None, school_start=None, profile=None):
             raise ValueError('School baseline conflicts with school entry date')
         school = school or {'enrolled': True, 'elapsed': None}
         school.update(grade)
+    observation = profile.get('school_observation')
+    if observation and parse_date(observation['as_of']) <= day:
+        school = school or {'enrolled': None, 'grade': None}
+        school['confirmed_observation'] = observation
+        if observation['as_of'] == day.isoformat():
+            school.update(grade=observation['label'], status='confirmed_on_report_date')
     return {"birth_date": birth.isoformat() if birth is not None else None,
             "age": age,
             "age_label": age_label, "age_precision": age_precision,

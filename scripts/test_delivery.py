@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from build_report_html import build
 from deliver_report import atomic_json, digest, finish, mark, merge_delta, read_json, verify
+from profile_store import update_profile
+from test_report_content import VALID
 
 
 def existing_state():
@@ -21,8 +23,11 @@ class DeliveryTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.archive = self.root/'档案'
         self.archive.mkdir()
+        update_profile(self.archive, {'children': [{'id': 'child-a', 'alias': '示例'}],
+            'timezone': 'UTC', 'onboarding': {'acknowledged': True, 'decisions': {
+                'age': 'deferred', 'school': 'deferred', 'family_members': 'deferred'}}}, True)
         self.source = self.archive/'FM-2026-007-2026-10-17.md'
-        self.source.write_text('# 测试报告\n\n## 完整正文\n内容不应丢失。\n',encoding='utf-8')
+        self.source.write_text('# 测试报告\n\n## 完整正文\n内容不应丢失。\n\n' + VALID,encoding='utf-8')
         self.receipt = self.root/'.qa/run/receipt.json'
         self.state = self.archive/'STATE-latest.json'
         atomic_json(self.state, existing_state())
@@ -39,7 +44,39 @@ class DeliveryTests(unittest.TestCase):
         self.temp.cleanup()
 
     def run_finish(self):
-        return finish(self.source,self.receipt,self.state,self.patch_file)
+        return finish(self.source,self.receipt,self.state,self.patch_file,family_archive=self.archive)
+
+    def test_invalid_audit_blocks_before_render_and_state_commit(self):
+        self.source.write_text('# 报告\n\n' + VALID.replace('原话或观点定位', '观点与定位'), encoding='utf-8')
+        self.receipt = self.root / '.qa/reviewed-invalid.json'
+        mark(self.receipt, 'start')
+        mark(self.receipt, 'ready', self.source)
+        before = self.state.read_bytes()
+        with patch('deliver_report.build') as render:
+            with self.assertRaisesRegex(ValueError, '表头'):
+                self.run_finish()
+            render.assert_not_called()
+        self.assertEqual(self.state.read_bytes(), before)
+        self.assertEqual(read_json(self.receipt)['status'], 'failed')
+        self.assertFalse(self.source.with_suffix('.html').exists())
+
+    def test_missing_profile_blocks_before_html_or_state_changes(self):
+        (self.archive/'FAMILY-profile.json').unlink()
+        before = self.state.read_bytes()
+        with self.assertRaises(ValueError):
+            self.run_finish()
+        self.assertEqual(self.state.read_bytes(), before)
+        self.assertFalse(self.source.with_suffix('.html').exists())
+
+    def test_unconfigured_sibling_blocks_delivery(self):
+        update_profile(self.archive, {'children': [{'id': 'child-b'}]}, True)
+        with self.assertRaises(ValueError):
+            self.run_finish()
+        self.assertFalse(self.source.with_suffix('.html').exists())
+
+    def test_temporary_mode_requires_actual_acknowledgement(self):
+        with self.assertRaises(ValueError):
+            finish(self.source,self.receipt,no_archive=True)
 
     def test_finish_and_retry_preserve_count_and_backup(self):
         old = self.state.read_bytes()
@@ -113,7 +150,7 @@ class DeliveryTests(unittest.TestCase):
 
     def test_explicit_no_archive_and_timing(self):
         before=self.state.read_bytes()
-        result=finish(self.source,self.receipt,no_archive=True)
+        result=finish(self.source,self.receipt,no_archive=True,onboarding_acknowledged=True)
         self.assertEqual(result['archive_result'],'not_requested')
         self.assertEqual(self.state.read_bytes(),before)
         self.assertGreaterEqual(result['analysis_wall_seconds'],0)

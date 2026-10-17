@@ -1,0 +1,5 @@
+# Keep source downloads and HTML-embedded Markdown identical across platforms.
+* text=auto eol=lf
+# Markdown hard breaks also appear in the HTML's plain-text fallback.
+*.md whitespace=-blank-at-eol
+examples/*.html whitespace=-blank-at-eol

@@ -25,13 +25,13 @@ python scripts/deliver_report.py ready 档案/FM-2026-007-2026-10-17.md --receip
 在`ready`之后先打开MD并发送进度提示，再运行：
 
 ```text
-python scripts/deliver_report.py finish 档案/FM-2026-007-2026-10-17.md --receipt .qa/run/delivery.json --state 档案/STATE-latest.json --patch .qa/run/state-delta.json --headline "忠实的阅读提要"
+python scripts/deliver_report.py finish 档案/FM-2026-007-2026-10-17.md --receipt .qa/run/delivery.json --state 档案/STATE-latest.json --patch .qa/run/state-delta.json --family-archive 档案 --headline "忠实的阅读提要"
 ```
 
 只构建/补格式，或用户明确不归档且允许文件：
 
 ```text
-python scripts/deliver_report.py finish 输出/报告.md --receipt .qa/run/delivery.json --no-archive
+python scripts/deliver_report.py finish 输出/报告.md --receipt .qa/run/delivery.json --no-archive --onboarding-acknowledged
 ```
 
 回执保存正文就绪墙钟耗时、构建检查耗时、归档耗时及实际状态。时间戳使用UTC便于计算；向用户展示日期时间按用户时区转换。正文墙钟耗时包括工具、用户等待等，不当作模型纯分析时间。回执不测最终聊天全文输出耗时，不能宣称是端到端总耗时。脚本不打开UI、不搜索、不作语义判定、不读取原始转写、不自动同意历史异常。
@@ -76,4 +76,10 @@ python scripts/deliver_report.py finish 输出/报告.md --receipt .qa/run/deliv
 
 ## 验证范围
 
-通用脚本验证文件一致性、离线资源、报告ID、重复计数、基准状态、补录不覆盖较新字段、备份与原子提交。它**不证明**分析深度、原话准确、隐私处理正确或事实来源可靠，这些须在正文就绪前完成；章节与来源完整性也仍按业务模块人工核对。日常模板未变不重复浏览器/PDF/PNG回归；改模板或遇到实际显示问题时按HTML规范检查受影响部分。
+通用脚本验证审计模块的结构约定、文件一致性、离线资源、报告ID、重复计数、基准状态、补录不覆盖较新字段、备份与原子提交。它**不证明**分析深度、原话准确、隐私处理正确或事实来源可靠，这些须在正文就绪前完成；其他章节与来源完整性也仍按业务模块人工核对。日常模板未变不重复浏览器/PDF/PNG回归；改模板或遇到实际显示问题时按HTML规范检查受影响部分。
+
+## 审计交付检查
+
+`finish` 在 HTML 构建与状态提交之前调用 `check_report_content.py`。默认家长会议报告必须包含内容审计模块；月、学期、年度报告及家庭共读附件不强加周报模块，已有该模块时检查同一证据约定。缺项使回执标记失败，保留 MD，不写新的 HTML 或状态；修订正文后按既有流程建立新回执。
+
+单独检查：`python scripts/check_report_content.py 报告.md`。固定表头及字段详见 [周报规则](weekly.md#审计表与证据约定)。无发现和材料不足可以如实说明，不编造审计条目。检查通过仅表示结构符合约定，不能证明引文和来源真实。低层 `build_report_html.py` 保留旧文无损补格式能力，不执行内容合规检查，不能把仅渲染成功当作新报告交付验收。

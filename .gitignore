@@ -20,3 +20,7 @@ FAMILY-profile.json
 
 .qa/
 *.zip
+
+# Maintainer-only test dependencies
+node_modules/
+.qa/

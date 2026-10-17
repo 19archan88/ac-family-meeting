@@ -42,7 +42,7 @@ class MeetingChecks(unittest.TestCase):
    self.assertEqual(base64.b64decode(config['markdownBase64']),original)
    self.assertEqual(p.read_bytes(),original)
    self.assertEqual(config['kind'],'会议纪要与双镜头分析')
-   self.assertEqual(config['renderVersion'],'2.0.0')
+   self.assertEqual(config['renderVersion'],'2.1.2')
    self.assertNotIn('@@',html)
    self.assertEqual(sorted(x.suffix for x in Path(td).iterdir()),['.html','.md'])
    with self.assertRaises(ValueError):build(p,p)

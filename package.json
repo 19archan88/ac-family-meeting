@@ -1,0 +1,10 @@
+{
+  "name": "ac-family-meeting",
+  "private": true,
+  "scripts": {
+    "test:presentation": "node scripts/test_presentation.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "profile_version": "1.0",
+  "profile_version": "2.0",
   "last_updated": null,
   "children": [
     {
@@ -9,7 +9,11 @@
       "birth_date": null,
       "age_reference": null,
       "school_start": null,
-      "school_baselines": []
+      "school_baselines": [],
+      "school_observation": null,
+      "onboarding": {
+        "decisions": {}
+      }
     }
   ],
   "family_members": [],
@@ -17,5 +21,10 @@
   "archive_path": null,
   "meeting_schedule": null,
   "semesters": [],
-  "semester_reminder_months": []
+  "semester_reminder_months": [],
+  "timezone": null,
+  "onboarding": {
+    "acknowledged": false,
+    "decisions": {}
+  }
 }

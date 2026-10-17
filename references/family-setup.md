@@ -1,6 +1,16 @@
 # 首次设置与个性化推算
 
-首次启动且当前私有档案不存在 `FAMILY-profile.json` 时，必须提醒用户自定义孩子及家庭成员信息。先吸收用户已经提供的资料，再集中询问缺项，不把初始化变成每次报告的重复问卷。
+每次启动执行 `python scripts/profile_store.py status --archive /private/family-meetings --child-id child-1`，逐个检查目标孩子；空模板不等于完成。先吸收用户已提供的资料，再集中询问缺项。初始化要求真实用户回应，允许明确暂缓，不强迫提供隐私。
+
+## 可执行保存与交付
+
+- 用户提供或确认的信息写为私有补丁 JSON，再运行 `python scripts/profile_store.py update --archive /private/family-meetings --patch /private/update.json --confirmed`。`--confirmed` 代表已经发生的用户确认，不是 agent 代替用户同意。
+- `children` 与 `family_members` 按稳定 id 合并；学籍 `school_baselines` 按生效日期合并，保留旧基准。其他数组为显式替换；未知兼容字段保留。档案在临时文件校验后原子替换，再回读确认；失败不得声称已保存。
+- 用户回应后记录 `onboarding.acknowledged: true`。家庭级 `onboarding.decisions` 可记录 timezone、family_members 的 deferred/declined；孩子自身的 `onboarding.decisions` 可记录 alias、age、school 的 deferred/declined。多孩子不能共享缺项选择。新资料到达立即合并，不等待下一场会议。
+- 日期、参与者和编号属于本次会议，不能把通常参与者当作实际出席。所有孩子逐人检查和计算，但会议状态仍属于家庭，一场只记一次。
+- 正式 `deliver_report.py finish` 必须带 `--family-archive /private/family-meetings`，报告与状态必须在该私有档案内。初始化未完成时停止交付并提示。明确临时分析才可带 `--no-archive --onboarding-acknowledged`，不创建家庭配置或会议状态。
+- `school_observation: {as_of, label}` 保存不具备升级规则的已确认学籍；年龄基准允许 `months: null`，不伪造精度。系统维护 family_id、修订号、确认时间和变更记录。
+- 档案位置来自用户指定或当前项目约定；不能跨目录搜其他家庭。跨设备需用户同步私有档案，安装技能不等于同步记忆。无写入能力则说明未保存。
 
 可直接这样提示：
 
@@ -67,6 +77,6 @@ python scripts/meeting_context.py 2030-08-20 --profile /private/FAMILY-profile.j
 
 `semesters` 为带确切日期的列表，例如 `[{"key":"2030-term-1","start":"2030-01-10","end":"2030-04-20"}]`。配置列表为空或会议不在配置范围时，学期为未知／未覆盖，不能自动判为暑假；请补充范围后再汇总。支持多学期制，年度必需学期材料数量按当年已确认校历确定，不硬套两学期。范围不得重叠。`semester_reminder_months` 保存家长确认的提醒月份；仅在技能被调用时提醒，不创建后台自动化。
 
-原规则的 9 月至次年 1 月、2 月至 7 月两学期制可以向用户提出作为选项，经确认后写成明确日期范围；不是所有家庭的事实。未传配置时脚本保留原版的日历参考结果，Agent 必须确认适用性后才能采用，不能以此绕过初始化。
+原规则的 9 月至次年 1 月、2 月至 7 月两学期制可以向用户提出作为选项，经确认后写成明确日期范围；不是所有家庭的事实。命令行未传配置时保持学期未知；底层兼容函数的旧参考结果不能作为用户已确认校历。
 
 三人家庭的年度奖项参考为 6–8 项、每人至少两项；人数变化时保留逐人平等覆盖原则，数量随人数及证据调整，证据不足注明缺口，不虚构获奖事例。家庭成员的独立同意、隐私和“不录”片段排除规则始终有效。

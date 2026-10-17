@@ -18,7 +18,7 @@ def build(source, output=None, headline=None, audience="parent"):
     if source.suffix.lower() != ".md":
         raise ValueError("The source must be a Markdown report.")
     raw = source.read_bytes()
-    markdown = raw.decode("utf-8-sig")
+    markdown = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
     if not markdown.strip():
         raise ValueError("The report is empty.")
     title_match = re.search(r"^#\s+(.+)$", markdown, re.M)
@@ -36,19 +36,26 @@ def build(source, output=None, headline=None, audience="parent"):
             if report_id.startswith("FM-") else "使用与规范")
     version_match = re.search(r"prompt_version:\s*(v[\d.]+)", markdown)
     version = version_match.group(1) if version_match else "未标注"
+    # Report kind comes from its stable id; do not infer the period from prose.
+    lead_label = ("阅读提要" if audience == "guide" else
+                  "本月的注脚" if report_id.startswith("FM-M-") else
+                  "本学期的注脚" if report_id.startswith("FM-S-") else
+                  "这一年的注脚" if report_id.startswith("FM-Y-") else
+                  "本周的注脚" if report_id.startswith("FM-") else "阅读提要")
     settings = {
         "title": title, "headline": headline or title, "reportId": report_id,
         "dateLabel": date_label, "kind": kind, "version": version,
-        "audience": audience, "sourceName": source.name,
+        "audience": audience, "sourceName": source.name, "leadLabel": lead_label,
         "sourceSha256": hashlib.sha256(raw).hexdigest(),
         "markdownBase64": base64.b64encode(raw).decode("ascii"),
-        "renderVersion": "2.0.0",
+        "renderVersion": "2.1.2",
     }
     web = ROOT / "assets" / "web"
     template = (web / "report.html").read_text(encoding="utf-8")
     # Base64 isolates private source text from HTML/JS parsing; no remote fonts or assets.
     replacements = {
         "@@TITLE@@": html.escape(title),
+        "@@FALLBACK@@": html.escape(markdown),
         "@@SETTINGS@@": json.dumps(settings, ensure_ascii=True).replace("<", "\\u003c"),
         "@@CSS@@": (web / "report.css").read_text(encoding="utf-8"),
         "@@ART@@": base64.b64encode((web / "cover-art.svg").read_bytes()).decode("ascii"),
@@ -57,20 +64,22 @@ def build(source, output=None, headline=None, audience="parent"):
         "@@PNG@@": (web / "png-encoder.js").read_text(encoding="utf-8"),
         "@@JS@@": (web / "report.js").read_text(encoding="utf-8"),
     }
-    result = re.sub(r"@@[A-Z]+@@", lambda m: replacements[m.group(0)], template)
+
     # Keep full license notices with redistributed inline code without adding visible UI.
     notices = {name: (ROOT / name).read_text(encoding="utf-8") for name in (
         "LICENSE", "THIRD_PARTY_NOTICES.md", "assets/web/vendor/marked-LICENSE.md",
         "assets/web/vendor/html2canvas-LICENSE.txt")}
     license_data = json.dumps(notices, ensure_ascii=True).replace("<", "\\u003c")
-    result = result.replace("</body>", '<script type="application/json" id="ac-family-license-notices">'
-                            + license_data + '</script>\n</body>')
+    replacements["@@LICENSES@@"] = license_data
+    result = re.sub(r"@@[A-Z]+@@", lambda m: replacements[m.group(0)], template)
     output = Path(output).resolve() if output else source.with_suffix(".html")
     if output.suffix.lower() != ".html" or output == source:
         raise ValueError("Output must be an HTML file distinct from the source.")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(".html.tmp")
-    temporary.write_text(result, encoding="utf-8")
+    # Keep embedded text stable on Windows; the Base64 source retains original bytes.
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(result)
     temporary.replace(output)
     return output
 

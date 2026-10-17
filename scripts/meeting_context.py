@@ -97,7 +97,7 @@ def main():
         school=args.school_start or profile.get('school_start')
         result=inspect(args.date,state,args.number,fingerprint,
                        parse_date(birth) if birth else None,parse_date(school) if school else None,
-                       profile,family.get('semesters'))
+                       profile,family.get('semesters') or [])
     except (ValueError,OSError,OverflowError,KeyError,TypeError) as exc: parser.error(str(exc))
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
